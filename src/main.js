@@ -113,6 +113,16 @@ class GameScene extends Phaser.Scene {
         this.score += 10;
         this.scoreText.setText('Score: ' + this.score);
 
+        // Ensure ball maintains velocity after collision
+        const currentSpeed = Math.sqrt(
+            ball.body.velocity.x * ball.body.velocity.x +
+            ball.body.velocity.y * ball.body.velocity.y
+        );
+        if (currentSpeed < 200) {
+            const angle = Math.atan2(ball.body.velocity.y, ball.body.velocity.x);
+            ball.body.setVelocity(Math.cos(angle) * 200, Math.sin(angle) * 200);
+        }
+
         // Check if all blocks are destroyed
         if (this.blocks.countActive() === 0) {
             this.winGame();
@@ -185,9 +195,11 @@ class GameScene extends Phaser.Scene {
             );
             
             if (speed > 400) {
-                this.ball.body.velocity.normalize().scale(400);
+                const normalized = this.ball.body.velocity.clone().normalize().scale(400);
+                this.ball.body.setVelocity(normalized.x, normalized.y);
             } else if (speed < 200) {
-                this.ball.body.velocity.normalize().scale(200);
+                const normalized = this.ball.body.velocity.clone().normalize().scale(200);
+                this.ball.body.setVelocity(normalized.x, normalized.y);
             }
         }
     }
