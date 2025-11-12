@@ -14,169 +14,83 @@ class GameScene extends Phaser.Scene {
         this.gameWidth = 800;
         this.gameHeight = 600;
         this.score = 0;
-        this.lives = 3;
         this.gameOver = false;
-        this.gameWon = false;
+        this.obstacleSpeed = 150;
+        this.spawnTimer = 0;
+        this.spawnDelay = 1500; // milliseconds
 
-        // Create paddle
-        this.paddle = this.add.rectangle(400, 550, 100, 20, 0x00ff00);
-        this.physics.add.existing(this.paddle);
-        this.paddle.body.setImmovable(true);
-        this.paddle.body.setCollideWorldBounds(true);
+        // Draw road background
+        this.createRoad();
 
-        // Create ball
-        this.ball = this.add.circle(400, 500, 10, 0xffffff);
-        this.physics.add.existing(this.ball);
-        this.ball.body.setCollideWorldBounds(true);
-        this.ball.body.setBounce(1, 1);
-        this.ball.body.setVelocity(200, -200);
+        // Create player vehicle
+        this.player = this.add.rectangle(400, 500, 60, 80, 0x00ff00);
+        this.physics.add.existing(this.player);
+        this.player.body.setCollideWorldBounds(true);
 
-        // Create blocks
-        this.blocks = this.physics.add.group();
-        this.createBlocks();
+        // Create obstacles group
+        this.obstacles = this.physics.add.group();
 
         // Set up collisions
-        this.physics.add.collider(this.ball, this.paddle, this.hitPaddle, null, this);
-        this.physics.add.collider(this.ball, this.blocks, this.hitBlock, null, this);
+        this.physics.add.overlap(this.player, this.obstacles, this.hitObstacle, null, this);
 
         // Set up input
         this.input.on('pointermove', (pointer) => {
-            this.paddle.x = Phaser.Math.Clamp(pointer.x, 50, 750);
+            this.player.x = Phaser.Math.Clamp(pointer.x, 30, 770);
         });
+
+        // Keyboard input for arrow keys
+        this.cursors = this.input.keyboard.createCursorKeys();
 
         // UI Text
         this.scoreText = this.add.text(16, 16, 'Score: 0', {
             fontSize: '24px',
             fill: '#fff'
         });
-
-        this.livesText = this.add.text(16, 48, 'Lives: 3', {
-            fontSize: '24px',
-            fill: '#fff'
-        });
-
-        // Set world bounds
-        this.physics.world.setBoundsCollision(true, true, true, false);
-
-        // Check for ball falling
-        this.physics.world.on('worldbounds', (body) => {
-            if (body.gameObject === this.ball && body.y > this.gameHeight) {
-                this.loseLife();
-            }
-        });
-
-        this.ball.body.onWorldBounds = true;
     }
 
-    createBlocks() {
-        const rows = 5;
-        const cols = 10;
-        const blockWidth = 70;
-        const blockHeight = 20;
-        const padding = 10;
-        const offsetX = 35;
-        const offsetY = 80;
+    createRoad() {
+        // Road background
+        const road = this.add.rectangle(400, 300, 500, 600, 0x444444);
+        road.setDepth(-2);
+
+        // Road lane markings
+        const laneMarkings = this.add.graphics();
+        laneMarkings.fillStyle(0xffff00, 1);
+        laneMarkings.setDepth(-1);
+
+        // Draw dashed center line
+        for (let i = 0; i < 600; i += 40) {
+            laneMarkings.fillRect(398, i, 4, 20);
+        }
+
+        // Draw side lines
+        laneMarkings.fillRect(148, 0, 4, 600);
+        laneMarkings.fillRect(648, 0, 4, 600);
+    }
+
+    spawnObstacle() {
+        // Random lane selection (3 lanes)
+        const lanes = [250, 400, 550];
+        const lane = Phaser.Math.RND.pick(lanes);
         
-        const colors = [0xff0000, 0xff7700, 0xffff00, 0x00ff00, 0x0000ff];
-
-        for (let row = 0; row < rows; row++) {
-            for (let col = 0; col < cols; col++) {
-                const x = offsetX + col * (blockWidth + padding);
-                const y = offsetY + row * (blockHeight + padding);
-                const block = this.add.rectangle(x, y, blockWidth, blockHeight, colors[row]);
-                this.physics.add.existing(block);
-                block.body.setImmovable(true);
-                this.blocks.add(block);
-            }
-        }
+        const obstacle = this.add.rectangle(lane, -50, 60, 60, 0xff0000);
+        this.physics.add.existing(obstacle);
+        obstacle.body.setVelocityY(this.obstacleSpeed);
+        this.obstacles.add(obstacle);
     }
 
-    hitPaddle(ball, paddle) {
-        let diff = 0;
-
-        if (ball.x < paddle.x) {
-            // Ball is on the left side of the paddle
-            diff = paddle.x - ball.x;
-            ball.body.setVelocityX(-10 * diff);
-        } else if (ball.x > paddle.x) {
-            // Ball is on the right side of the paddle
-            diff = ball.x - paddle.x;
-            ball.body.setVelocityX(10 * diff);
-        } else {
-            // Ball is in the middle of the paddle
-            ball.body.setVelocityX(2 + Math.random() * 8);
-        }
-    }
-
-    hitBlock(ball, block) {
-        block.destroy();
-        this.score += 10;
-        this.scoreText.setText('Score: ' + this.score);
-
-        // Ensure ball maintains velocity after collision
-        const currentSpeed = Math.sqrt(
-            ball.body.velocity.x * ball.body.velocity.x +
-            ball.body.velocity.y * ball.body.velocity.y
-        );
-        if (currentSpeed < 200) {
-            const angle = Math.atan2(ball.body.velocity.y, ball.body.velocity.x);
-            ball.body.setVelocity(Math.cos(angle) * 200, Math.sin(angle) * 200);
-        }
-
-        // Prevent ball from getting stuck in horizontal motion
-        // Ensure minimum Y velocity component
-        const minYVelocity = 100;
-        if (Math.abs(ball.body.velocity.y) < minYVelocity) {
-            // Preserve the sign (direction) of Y velocity
-            const sign = ball.body.velocity.y >= 0 ? 1 : -1;
-            ball.body.setVelocityY(sign * minYVelocity);
-        }
-
-        // Check if all blocks are destroyed
-        if (this.blocks.countActive() === 0) {
-            this.winGame();
-        }
-    }
-
-    loseLife() {
-        if (this.gameOver || this.gameWon) return;
-
-        this.lives--;
-        this.livesText.setText('Lives: ' + this.lives);
-
-        if (this.lives === 0) {
-            this.endGame();
-        } else {
-            // Reset ball position
-            this.ball.setPosition(400, 500);
-            this.ball.body.setVelocity(200, -200);
-        }
-    }
-
-    winGame() {
-        this.gameWon = true;
-        this.ball.body.setVelocity(0, 0);
-        
-        const winText = this.add.text(400, 300, 'YOU WIN!', {
-            fontSize: '64px',
-            fill: '#00ff00'
-        });
-        winText.setOrigin(0.5);
-
-        const restartText = this.add.text(400, 370, 'Click to Restart', {
-            fontSize: '24px',
-            fill: '#fff'
-        });
-        restartText.setOrigin(0.5);
-
-        this.input.once('pointerdown', () => {
-            this.scene.restart();
-        });
+    hitObstacle(player, obstacle) {
+        if (this.gameOver) return;
+        this.endGame();
     }
 
     endGame() {
         this.gameOver = true;
-        this.ball.body.setVelocity(0, 0);
+        
+        // Stop all obstacles
+        this.obstacles.children.entries.forEach(obstacle => {
+            obstacle.body.setVelocity(0, 0);
+        });
         
         const gameOverText = this.add.text(400, 300, 'GAME OVER', {
             fontSize: '64px',
@@ -184,7 +98,13 @@ class GameScene extends Phaser.Scene {
         });
         gameOverText.setOrigin(0.5);
 
-        const restartText = this.add.text(400, 370, 'Click to Restart', {
+        const finalScoreText = this.add.text(400, 360, 'Final Score: ' + this.score, {
+            fontSize: '32px',
+            fill: '#fff'
+        });
+        finalScoreText.setOrigin(0.5);
+
+        const restartText = this.add.text(400, 420, 'Click to Restart', {
             fontSize: '24px',
             fill: '#fff'
         });
@@ -195,22 +115,39 @@ class GameScene extends Phaser.Scene {
         });
     }
 
-    update() {
-        // Ball speed limiting
-        if (this.ball.body) {
-            const speed = Math.sqrt(
-                this.ball.body.velocity.x * this.ball.body.velocity.x +
-                this.ball.body.velocity.y * this.ball.body.velocity.y
-            );
+    update(time, delta) {
+        if (this.gameOver) return;
+
+        // Keyboard controls
+        if (this.cursors.left.isDown) {
+            this.player.x = Math.max(30, this.player.x - 5);
+        } else if (this.cursors.right.isDown) {
+            this.player.x = Math.min(770, this.player.x + 5);
+        }
+
+        // Spawn obstacles
+        this.spawnTimer += delta;
+        if (this.spawnTimer > this.spawnDelay) {
+            this.spawnObstacle();
+            this.spawnTimer = 0;
             
-            if (speed > 400) {
-                const normalized = this.ball.body.velocity.clone().normalize().scale(400);
-                this.ball.body.setVelocity(normalized.x, normalized.y);
-            } else if (speed < 200) {
-                const normalized = this.ball.body.velocity.clone().normalize().scale(200);
-                this.ball.body.setVelocity(normalized.x, normalized.y);
+            // Gradually increase difficulty
+            if (this.spawnDelay > 500) {
+                this.spawnDelay -= 10;
+            }
+            if (this.obstacleSpeed < 300) {
+                this.obstacleSpeed += 2;
             }
         }
+
+        // Remove obstacles that went off screen and increment score
+        this.obstacles.children.entries.forEach(obstacle => {
+            if (obstacle.y > this.gameHeight + 50) {
+                this.score += 10;
+                this.scoreText.setText('Score: ' + this.score);
+                obstacle.destroy();
+            }
+        });
     }
 }
 
