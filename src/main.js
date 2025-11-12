@@ -123,6 +123,15 @@ class GameScene extends Phaser.Scene {
             ball.body.setVelocity(Math.cos(angle) * 200, Math.sin(angle) * 200);
         }
 
+        // Prevent ball from getting stuck in horizontal motion
+        // Ensure minimum Y velocity component
+        const minYVelocity = 100;
+        if (Math.abs(ball.body.velocity.y) < minYVelocity) {
+            // Preserve the sign (direction) of Y velocity
+            const sign = ball.body.velocity.y >= 0 ? 1 : -1;
+            ball.body.setVelocityY(sign * minYVelocity);
+        }
+
         // Check if all blocks are destroyed
         if (this.blocks.countActive() === 0) {
             this.winGame();
