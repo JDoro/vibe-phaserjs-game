@@ -60,7 +60,7 @@ class GameScene extends Phaser.Scene {
 
         // Check for ball falling
         this.physics.world.on('worldbounds', (body) => {
-            if (body.gameObject === this.ball && body.blocked.down) {
+            if (body.gameObject === this.ball && body.y > this.gameHeight) {
                 this.loseLife();
             }
         });
