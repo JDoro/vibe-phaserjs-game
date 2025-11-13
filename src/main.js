@@ -75,8 +75,8 @@ class GameScene extends Phaser.Scene {
         
         const obstacle = this.add.rectangle(lane, -50, 60, 60, 0xff0000);
         this.physics.add.existing(obstacle);
-        obstacle.body.setVelocityY(this.obstacleSpeed);
         this.obstacles.add(obstacle);
+        obstacle.body.setVelocityY(this.obstacleSpeed);
     }
 
     hitObstacle(player, obstacle) {
@@ -170,3 +170,8 @@ const config = {
 
 // Create the game
 const game = new Phaser.Game(config);
+
+// Expose game to window for debugging
+if (typeof window !== 'undefined') {
+    window.game = game;
+}
